@@ -4,10 +4,13 @@ import Discord, { MessageEmbed } from "discord.js";
 import { PorterStemmer, SentimentAnalyzer, WordTokenizer } from "natural";
 import User from "./models/User";
 import handleCommand from "./handleCommand";
+import keepAlive from "./keepAlive";
 
 dotenv.config();
 
 (async () => {
+    keepAlive();
+
     // connect to database
     await connect(process.env.DATABASE_URI || "");
 
@@ -19,11 +22,14 @@ dotenv.config();
     })
 
     client.on("messageCreate", async (message) => {
+        if (message.author.bot) return;
+
         try {
             if (client.user && message.mentions.has(client.user)) { handleCommand(message, client); return; };
         } catch (err) { console.log(err); };
 
-        if (!message.mentions.users.first()) return;
+        const mentionId = (message.mentions.users.first() || message.mentions.repliedUser)?.id;
+        if (!mentionId) return;
 
         const cleanedMessage = message.content
             .replace(/<[@#!&](.*?)>/g, "") // remove mentions
@@ -37,12 +43,13 @@ dotenv.config();
         const analyzer = new SentimentAnalyzer('English', PorterStemmer, 'afinn');
         const analysis = analyzer.getSentiment(tokenizedMessage);
 
+        console.log(analysis);
         // check if negative
         if (analysis < 0) {
-            let userDocument = await User.findOneAndUpdate({ _id: message.author.id }, { $inc: { timesInsulted: 1 } }, {
+            let userDocument = await User.findOneAndUpdate({ discordId: mentionId }, { $inc: { timesInsulted: 1 } }, {
                 new: true,
                 upsert: true
-            });
+            }).catch((err) => console.log(err));
         }
     });
 
