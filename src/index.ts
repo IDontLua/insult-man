@@ -43,7 +43,6 @@ dotenv.config();
         const analyzer = new SentimentAnalyzer('English', PorterStemmer, 'afinn');
         const analysis = analyzer.getSentiment(tokenizedMessage);
 
-        console.log(analysis);
         // check if negative
         if (analysis < 0) {
             let userDocument = await User.findOneAndUpdate({ discordId: mentionId }, { $inc: { timesInsulted: 1 } }, {
